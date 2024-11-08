@@ -159,7 +159,7 @@ end
     out .= integrator.du
 end
 
-function DiffEqBase.change_t_via_interpolation!(integrator::AbstractSundialsIntegrator, t)
+function DiffEqBase.change_t_via_interpolation!(integrator::AbstractSundialsIntegrator, t, modify_save_endpoint::Type{Val{T}}=Val{false}, reinitialize_alg=nothing) where T
     integrator.t = t
     integrator(integrator.u, integrator.t)
     return nothing
@@ -174,9 +174,11 @@ end
 end
 
 function DiffEqBase.reeval_internals_due_to_modification!(integrator::AbstractSundialsIntegrator)
+    integrator.userfun.p = integrator.p
     nothing
 end
 function DiffEqBase.reeval_internals_due_to_modification!(integrator::IDAIntegrator)
+    integrator.userfun.p = integrator.p
     handle_callback_modifiers!(integrator::IDAIntegrator)
 end
 
@@ -287,3 +289,8 @@ function DiffEqBase.reinit!(integrator::AbstractSundialsIntegrator,
 
     nothing
 end
+
+DiffEqBase.get_tstops(integ::AbstractSundialsIntegrator) = integ.opts.tstops
+DiffEqBase.get_tstops_array(integ::AbstractSundialsIntegrator) = get_tstops(integ).valtree
+DiffEqBase.get_tstops_max(integ::AbstractSundialsIntegrator) =
+    maximum(get_tstops_array(integ))

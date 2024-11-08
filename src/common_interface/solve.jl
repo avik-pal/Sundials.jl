@@ -118,7 +118,7 @@ function DiffEqBase.__init(prob::DiffEqBase.AbstractODEProblem{uType, tupType, i
     progress_steps=1000,
     progress_name = "ODE",
     progress_message = DiffEqBase.ODE_DEFAULT_PROG_MESSAGE,
-    progress_id = gensym("Sundials"),
+    progress_id = :Sundials,
     save_timeseries = nothing,
     advance_to_tstop = false,
     stop_at_next_tstop = false,
@@ -147,7 +147,7 @@ function DiffEqBase.__init(prob::DiffEqBase.AbstractODEProblem{uType, tupType, i
 
     progress && Logging.@logmsg(Logging.LogLevel(-1), progress_name, _id=progress_id, progress=0)
 
-    append!(tstops, d_discontinuities)
+    tstops = vcat(tstops, d_discontinuities)
     callbacks_internal = DiffEqBase.CallbackSet(callback)
 
     max_len_cb = DiffEqBase.max_vector_callback_length(callbacks_internal)
@@ -483,14 +483,18 @@ function DiffEqBase.__init(prob::DiffEqBase.AbstractODEProblem{uType, tupType, i
     save_everystep = isempty(saveat), save_idxs = nothing,
     dense = save_everystep,
     save_on = true,
-    save_start = true,
-    save_end = true,
+    save_start = save_everystep || isempty(saveat) ||
+                     saveat isa Number ? true :
+                 prob.tspan[1] in saveat,
+    save_end = save_everystep || isempty(saveat) ||
+                   saveat isa Number ? true :
+               prob.tspan[2] in saveat,
     save_timeseries = nothing,
     progress = false,
     progress_steps = 1000,
     progress_name = "ODE",
     progress_message = DiffEqBase.ODE_DEFAULT_PROG_MESSAGE,
-    progress_id = gensym("Sundials"),
+    progress_id = :Sundials,
     advance_to_tstop = false,
     stop_at_next_tstop = false,
     userdata = nothing,
@@ -515,7 +519,7 @@ function DiffEqBase.__init(prob::DiffEqBase.AbstractODEProblem{uType, tupType, i
 
     progress && Logging.@logmsg(Logging.LogLevel(-1), progress_name, _id=progress_id, progress=0)
 
-    append!(tstops, d_discontinuities)
+    tstops = vcat(tstops, d_discontinuities)
     callbacks_internal = DiffEqBase.CallbackSet(callback)
 
     max_len_cb = DiffEqBase.max_vector_callback_length(callbacks_internal)
@@ -1002,7 +1006,7 @@ function DiffEqBase.__init(prob::DiffEqBase.AbstractDAEProblem{uType, duType, tu
     progress_steps = 1000,
     progress_name = "DAE IDA",
     progress_message = DiffEqBase.ODE_DEFAULT_PROG_MESSAGE,
-    progress_id = gensym("Sundials"),
+    progress_id = :Sundials,
     advance_to_tstop = false,
     stop_at_next_tstop = false,
     userdata = nothing,
@@ -1026,7 +1030,7 @@ function DiffEqBase.__init(prob::DiffEqBase.AbstractDAEProblem{uType, duType, tu
 
     progress && Logging.@logmsg(Logging.LogLevel(-1), progress_name, _id=progress_id, progress=0)
 
-    append!(tstops, d_discontinuities)
+    tstops = vcat(tstops, d_discontinuities)
     callbacks_internal = DiffEqBase.CallbackSet(callback)
 
     max_len_cb = DiffEqBase.max_vector_callback_length(callbacks_internal)
@@ -1415,7 +1419,7 @@ function DiffEqBase.solve!(integrator::AbstractSundialsIntegrator; early_free = 
             integrator.userfun.p = integrator.p
             solver_step(integrator, tstop)
             integrator.t = first(integrator.tout)
-            # NB: CVode, ARKode may warn and then recover if integrator.t == integrator.tprev so don't flag this as an error 
+            # NB: CVode, ARKode may warn and then recover if integrator.t == integrator.tprev so don't flag this as an error
             integrator.flag < 0 && break
             handle_callbacks!(integrator) # this also updates the interpolation
             integrator.flag < 0 && break

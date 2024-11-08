@@ -1,6 +1,7 @@
 using Sundials, Test
 using SciMLBase: NoInit
 using DAEProblemLibrary: prob_dae_resrob
+using DiffEqCallbacks
 
 # Test DAE
 mutable struct precflags
@@ -58,8 +59,10 @@ sol = solve(prob, IDA(); saveat = saveat, save_everystep = true)
 @test sol.t != saveat
 @test intersect(sol.t, saveat) == saveat
 @info "IDA with tstops"
-sol = solve(prob, IDA(); tstops = [0.9])
-@test 0.9 ∈ sol.t
+for tstops in [0.9, [0.9]]
+    local sol = solve(prob, IDA(); tstops)
+    @test 0.9 ∈ sol.t
+end
 
 sol = solve(prob, IDA(); d_discontinuities = [0.9])
 @test 0.9 ∈ sol.t
@@ -131,3 +134,14 @@ sol = solve(prob, IDA())
 # If this is one, it incorrectly saved u, if it is 0., it incorrectly solved
 # the pre-init value rather than the post-init one.
 @test sol(0.0, Val{1})[1] ≈ 11.0
+
+# test that callbacks modifying p get the new p
+daefun = (du, u, p, t) -> [du[1] - u[2], u[2] - p]
+callback = PresetTimeCallback(.5, integ->(integ.p=-integ.p;))
+prob = DAEProblem(daefun, [0.0, 0.0], [0.0,-1.0], (0., 1), 1;
+    differential_vars = [true, false], callback)
+sol = solve(prob, IDA())
+@test sol.retcode == ReturnCode.Success
+# test that the callback flipping p caused u[2] to get flipped.
+first_t = findfirst(isequal(0.5), sol.t)
+@test sol.u[first_t][2] == -sol.u[first_t+1][2]
